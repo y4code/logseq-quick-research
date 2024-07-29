@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Logseq Web Clipper
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      0.1
 // @description  Clip web content to Logseq with hierarchical structure
-// @author       You
+// @author       y4code
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_notification
@@ -42,13 +42,11 @@
     GM_addStyle(`
       #logseq-clipper-container {
         position: fixed;
-        top: 200px;
+        top: 100px;
         right: 0px;
-        padding: 10px;
+        padding: 2px;
         background: #f9fafb;
         color: #111827;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         z-index: 9999;
         display: flex;
@@ -58,11 +56,8 @@
         max-width: 250px;
       }
       #logseq-page-selection, #logseq-clipper-status {
-        margin: 5px 0;
-        padding: 8px 10px;
+        padding: 0px;
         background: #fff;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
         color: #111827;
         width: 100%;
       }
@@ -71,14 +66,9 @@
       }
       #logseq-custom-page-input {
         display: none;
-        margin-top: 5px;
-        padding: 8px 10px;
+        padding: 0px;
         font-size: 14px;
-        border-radius: 6px;
-        border: 1px solid #d1d5db;
-        background: #fff;
-        color: #111827;
-        width: 100%;
+
       }
     `);
 
@@ -111,7 +101,7 @@
         const input = document.createElement('input');
         input.id = 'logseq-custom-page-input';
         input.type = 'text';
-        input.placeholder = 'Enter custom page name';
+        input.placeholder = 'page name';
         input.addEventListener('blur', onCustomPageInputBlur);
         return input;
     }
@@ -158,7 +148,7 @@
     }
 
     function updateStatusBar() {
-        statusBar.textContent = `当前节点: ${currentNode.content || '无'}`;
+        statusBar.textContent = `${currentNode.content || '无'}`;
     }
 
     function notify(message) {
