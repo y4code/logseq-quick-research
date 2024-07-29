@@ -1,0 +1,1 @@
+I hate browser extension, so I implemented it as a Tampermonkey script. 
