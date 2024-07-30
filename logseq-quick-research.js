@@ -16,6 +16,8 @@
 
     const LOGSEQ_API_URL = 'http://127.0.0.1:12315/api';
     let AUTH_TOKEN = GM_getValue('logseq_token');
+    let pageTree, currentNode;
+    const nodeStack = [];
 
     if (!AUTH_TOKEN) {
         AUTH_TOKEN = prompt('Please enter your Logseq token:');
@@ -26,15 +28,6 @@
             return;
         }
     }
-
-    let tree = {
-        uuid: null,
-        content: 'Root',
-        children: []
-    };
-
-    let currentNode = tree;
-    const nodeStack = [];
 
     const container = document.createElement('div');
     container.id = 'logseq-clipper-container';
@@ -55,142 +48,73 @@
         font-size: 14px;
         max-width: 250px;
       }
-      #logseq-page-selection, #logseq-clipper-status {
-        padding: 0px;
-        background: #fff;
-        color: #111827;
-        width: 100%;
-      }
-      #logseq-page-selection {
-        font-size: 14px;
+      #logseq-page-selection, #logseq-custom-page-input {
+        margin: 4px;
+        padding: 8px;
+        width: calc(100% - 16px); // Adjust for padding
+        box-sizing: border-box;
       }
       #logseq-custom-page-input {
         display: none;
-        padding: 0px;
-        font-size: 14px;
-
       }
     `);
 
-    const pageSelection = createPageSelection();
-    const statusBar = createStatusBar();
-    const customPageInput = createCustomPageInput();
-
-    container.appendChild(pageSelection);
+    const statusBar = document.createElement('div');
+    statusBar.id = 'logseq-clipper-status';
     container.appendChild(statusBar);
-    container.appendChild(customPageInput);
+    updateStatusBar(); // Initial update
 
-    function createStatusBar() {
-        const bar = document.createElement('div');
-        bar.id = 'logseq-clipper-status';
-        return bar;
-    }
-
-    function createPageSelection() {
-        const select = document.createElement('select');
-        select.id = 'logseq-page-selection';
-        select.innerHTML = `
+    const pageSelection = document.createElement('select');
+    pageSelection.id = 'logseq-page-selection';
+    pageSelection.innerHTML = `
         <option value="Journal">Journal</option>
         <option value="Custom">Custom Page</option>
-      `;
-        select.addEventListener('change', onPageSelectionChange);
-        return select;
-    }
+    `;
+    container.appendChild(pageSelection);
 
-    function createCustomPageInput() {
-        const input = document.createElement('input');
-        input.id = 'logseq-custom-page-input';
-        input.type = 'text';
-        input.placeholder = 'page name';
-        input.addEventListener('blur', onCustomPageInputBlur);
-        return input;
-    }
+    const customPageInput = document.createElement('input');
+    customPageInput.id = 'logseq-custom-page-input';
+    customPageInput.type = 'text';
+    customPageInput.placeholder = 'Enter custom page name';
+    container.appendChild(customPageInput);
 
-    async function onPageSelectionChange() {
-        const selectedPage = pageSelection.value;
-        if (selectedPage === 'Custom') {
+    pageSelection.addEventListener('change', async function () {
+        const selection = pageSelection.value;
+        // console.log('Page selection changed to:', selection);
+        if (selection === 'Custom') {
             customPageInput.style.display = 'block';
-            const customPageName = customPageInput.value;
-            if (customPageName) {
-                await setPageUUID(await getPageUUID(customPageName), customPageName);
-                notify(`已切换到自定义页面: ${customPageName}`);
-            }
+            customPageInput.focus();
         } else {
             customPageInput.style.display = 'none';
             const today = formatDate(new Date());
-            await setPageUUID(await getPageUUID(today), today);
-            notify(`已切换到 Journal: ${today}`);
-        }
-    }
-
-    async function onCustomPageInputBlur() {
-        const customPageName = customPageInput.value;
-        if (customPageName) {
-            await setPageUUID(await getPageUUID(customPageName), customPageName);
-            notify(`已切换到自定义页面: ${customPageName}`);
-        }
-    }
-
-    async function setPageUUID(uuid, content) {
-        tree = {
-            uuid: uuid,
-            content: content,
-            children: []
-        };
-        currentNode = tree;
-        nodeStack.length = 0;
-        updateStatusBar();
-    }
-
-    function formatDate(date) {
-        const options = { year: 'numeric', month: 'short', day: 'numeric' };
-        return date.toLocaleDateString('en-US', options).replace(/,/, 'th,');
-    }
-
-    function updateStatusBar() {
-        statusBar.textContent = `${currentNode.content || '无'}`;
-    }
-
-    function notify(message) {
-        GM_notification(message, 'Logseq Web Clipper');
-    }
-
-    async function insertBlock(content) {
-        const blockParentUUID = currentNode.uuid;
-        if (!blockParentUUID) {
-            notify('无法插入块，未找到父级 UUID');
-            return;
-        }
-
-        try {
-            const response = await fetch(LOGSEQ_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${AUTH_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    method: "logseq.Editor.insertBlock",
-                    args: [blockParentUUID, content]
-                })
-            });
-
-            const data = await response.json();
-            if (data?.uuid) {
-                const newNode = { uuid: data.uuid, content: content, children: [] };
-                currentNode.children.push(newNode);
-                updateStatusBar();
-                notify('内容已添加到 Logseq');
+            // console.log('Today\'s date:', today);
+            const pageUUID = await getPageUUID(today);
+            if (pageUUID) {
+                // console.log('Page UUID for today:', pageUUID);
+                await getPageBlocksTree(pageUUID, today);
             } else {
-                notify('插入块失败');
+                notify('无法获取页面 UUID');
             }
-        } catch (error) {
-            notify('插入块时发生错误');
         }
-    }
+    });
+
+    customPageInput.addEventListener('blur', async function () {
+        const customPageName = customPageInput.value.trim();
+        // console.log('Custom page name input:', customPageName);
+        if (customPageName) {
+            const pageUUID = await getPageUUID(customPageName);
+            if (pageUUID) {
+                // console.log('Page UUID for custom page:', pageUUID);
+                await getPageBlocksTree(pageUUID, customPageName);
+            } else {
+                notify('无法获取页面 UUID');
+            }
+        }
+    });
 
     async function getPageUUID(pageName) {
         try {
+            // console.log('Getting page UUID for:', pageName);
             const response = await fetch(LOGSEQ_API_URL, {
                 method: 'POST',
                 headers: {
@@ -204,45 +128,176 @@
             });
 
             const data = await response.json();
+            // console.log('Response data for page UUID:', data);
             return data?.uuid || null;
         } catch (error) {
+            console.error('Error getting page UUID:', error);
             notify('获取页面 UUID 时发生错误');
             return null;
+        }
+    }
+
+    async function getPageBlocksTree(pageUUID, pageName) {
+        try {
+            // console.log('Getting page blocks tree for UUID:', pageUUID);
+            const response = await fetch(LOGSEQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AUTH_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    method: "logseq.Editor.getPageBlocksTree",
+                    args: [pageUUID]
+                })
+            });
+            const blocks = await response.json();
+            // console.log('Response data for page blocks tree:', blocks);
+            pageTree = {
+                uuid: pageUUID,
+                content: pageName,
+                children: blocks
+            };
+            currentNode = pageTree;
+            updateStatusBar();
+        } catch (error) {
+            console.error('Error getting page blocks tree:', error);
+            notify('获取页面块树时发生错误');
+        }
+    }
+
+    function updateStatusBar() {
+        if (currentNode && currentNode.content) {
+            statusBar.textContent = `当前层级: ${currentNode.content}`;
+        } else {
+            statusBar.textContent = `当前层级: 正在加载...`;
+        }
+        // console.log('Status bar updated:', statusBar.textContent);
+    }
+
+    function notify(message) {
+        // console.log('Notification:', message);
+        GM_notification(message, 'Logseq Web Clipper');
+    }
+
+    async function insertBlock(content) {
+        if (!currentNode.uuid) {
+            notify('无法插入块，未找到父级 UUID');
+            return;
+        }
+
+        try {
+            // console.log('Inserting block with content:', content);
+            const response = await fetch(LOGSEQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AUTH_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    method: "logseq.Editor.insertBlock",
+                    args: [currentNode.uuid, content, false]
+                })
+            });
+
+            const data = await response.json();
+            // console.log('Response data for insert block:', data);
+            if (data?.uuid) {
+                let newNode = { uuid: data.uuid, content: content, children: [] };
+                currentNode.children.push(newNode);
+                notify('内容已添加到 Logseq');
+            } else {
+                notify('插入块失败');
+            }
+        } catch (error) {
+            console.error('Error inserting block:', error);
+            notify('插入块时发生错误');
         }
     }
 
     document.addEventListener('keydown', async function (e) {
         if (e.metaKey && e.shiftKey) {
             const key = e.key.toLowerCase();
+            // console.log('Key pressed:', key);
 
             switch (key) {
                 case 'e':
                     const selectedText = window.getSelection().toString();
+                    // console.log('Selected text:', selectedText);
                     await insertBlock(selectedText);
                     break;
-                case 'arrowdown':
-                    if (currentNode.children.length > 0) {
-                        nodeStack.push(currentNode);
-                        currentNode = currentNode.children[currentNode.children.length - 1];
+                case 'arrowleft':
+                    if (nodeStack.length > 0) {
+                        currentNode = nodeStack.pop();
                         updateStatusBar();
-                        notify('已切换到下一级别');
+                    }
+                    break;
+                case 'arrowright':
+                    if (currentNode.children && currentNode.children.length > 0) {
+                        nodeStack.push(currentNode);
+                        currentNode = currentNode.children[0];
+                        updateStatusBar();
                     }
                     break;
                 case 'arrowup':
                     if (nodeStack.length > 0) {
-                        currentNode = nodeStack.pop();
-                        updateStatusBar();
-                        notify('已切换到上一级别');
+                        let parent = nodeStack[nodeStack.length - 1];
+                        let foundIndex = parent.children.findIndex(child => child.uuid === currentNode.uuid);
+                        if (foundIndex > 0) {
+                            currentNode = parent.children[foundIndex - 1];
+                            updateStatusBar();
+                        }
+                    }
+                    break;
+                case 'arrowdown':
+                    if (nodeStack.length > 0) {
+                        let parent = nodeStack[nodeStack.length - 1];
+                        let foundIndex = parent.children.findIndex(child => child.uuid === currentNode.uuid);
+                        if (foundIndex >= 0 && foundIndex < parent.children.length - 1) {
+                            currentNode = parent.children[foundIndex + 1];
+                            updateStatusBar();
+                        }
                     }
                     break;
             }
         }
     });
 
-    (async () => {
+    async function initialize() {
         const today = formatDate(new Date());
-        await setPageUUID(await getPageUUID(today), today);
-        notify(`已切换到 Journal: ${today}`);
-    })();
+        // console.log('Initializing script with today\'s date:', today);
+        const pageUUID = await getPageUUID(today);
+        if (pageUUID) {
+            // console.log('Page UUID on initialize:', pageUUID);
+            await getPageBlocksTree(pageUUID, today);
+            notify(`已切换到 Journal: ${today}`);
+        } else {
+            notify('无法获取页面 UUID');
+        }
+    }
+
+    function formatDate(date) {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        let formattedDate = date.toLocaleDateString('en-US', options);
+
+        // 提取日、月和年
+        const [month, day, year] = formattedDate.replace(',', '').split(' ');
+
+        // 判断并处理日后缀
+        let daySuffix;
+        if (day.endsWith('1') && day !== '11') {
+            daySuffix = 'st';
+        } else if (day.endsWith('2') && day !== '12') {
+            daySuffix = 'nd';
+        } else if (day.endsWith('3') && day !== '13') {
+            daySuffix = 'rd';
+        } else {
+            daySuffix = 'th';
+        }
+
+        return `${month} ${day}${daySuffix}, ${year}`;
+    }
+
+    initialize(); // Start the script by initializing
 
 })();

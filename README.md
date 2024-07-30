@@ -12,3 +12,5 @@ I hate browser extension, so I implemented it as a Tampermonkey script.
 
 - [Logseq Copilot](https://github.com/EINDEX/logseq-copilot)
 - [MarginNote](https://www.marginnote.com/)
+- [Plugins Doc](https://plugins-doc.logseq.com/)
+- [Logseq Plugins](https://logseq.github.io/plugins/)

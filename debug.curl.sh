@@ -67,21 +67,11 @@
 #   ]
 # }'
 
-# curl -X POST http://127.0.0.1:12315/api \
-#     -H "Content-Type: application/json" \
-#     -H "Authorization: Bearer <TOKEN>" \
-#     -d '{
-#   "method": "logseq.Editor.getBlock",
-#   "args": [
-#     "66a7791f-5159-4211-a2c7-ddc69d27d53e"
-#   ]
-# }'
-
-
+# block uuid or page uuid
 curl -X POST http://127.0.0.1:12315/api \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <TOKEN>" \
-    -d '{
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
   "method": "logseq.Editor.insertBlock",
   "args": [
     "66a782dc-0a7b-491b-9783-0435d99e7561",
@@ -89,52 +79,37 @@ curl -X POST http://127.0.0.1:12315/api \
   ]
 }'
 
-# {
-#   "properties": {},
-#   "tags": [],
-#   "pathRefs": [],
-#   "uuid": "66a7a2bf-b4ff-4bbb-989b-4f52c3c581c7",
-#   "content": "CONTENT_TO_INSERT",
-#   "macros": [],
-#   "page": 2109,
-#   "format": "markdown",
-#   "refs": []
-# }
 
 
+# page name or page uuid, no block uuid
 curl -X POST http://127.0.0.1:12315/api \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <TOKEN>" \
-    -d '{
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
   "method": "logseq.Editor.getPage",
   "args": [
-    "Jul 29th, 2024"
+    "jotai"
   ]
 }'
 
+# only block uuid, no page uuid or page id
+curl -X POST http://127.0.0.1:12315/api \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+  "method": "logseq.Editor.getBlock",
+  "args": [
+    "66a93749-7583-4e60-95f9-943ef1abd8fc"
+  ]
+}'
 
-# {
-#     "properties": {
-#         "tags": [
-#             "clip-notes"
-#         ]
-#     },
-#     "updatedAt": 1722258231227,
-#     "createdAt": 1722251551095,
-#     "tags": [
-#         {
-#             "id": 2109
-#         }
-#     ],
-#     "id": 2109,
-#     "propertiesTextValues": {
-#         "tags": "clip-notes"
-#     },
-#     "name": "clip-notes",
-#     "uuid": "66a7791f-018d-44f0-b268-828aa0f84c02",
-#     "journal?": false,
-#     "originalName": "clip-notes",
-#     "file": {
-#         "id": 2108
-#     }
-# }
+# only page name or page uuid, no page id
+curl -X POST http://127.0.0.1:12315/api \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+  "method": "logseq.Editor.getPageBlocksTree",
+  "args": [
+    "66a93679-300c-4345-b61f-7438a6a17b4a"
+  ]
+}'
