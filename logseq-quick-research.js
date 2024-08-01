@@ -34,6 +34,8 @@
     document.body.appendChild(container);
     GM_addStyle(`
       #logseq-clipper-container {
+      font-size: 10px;
+        opacity: 0.3;
         position: fixed;
         top: 100px;
         right: 0px;
@@ -45,14 +47,13 @@
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        font-size: 14px;
         max-width: 250px;
       }
       #logseq-page-selection, #logseq-custom-page-input {
-        margin: 4px;
-        padding: 8px;
+        margin: 0px;
+        padding: 0px;
         width: calc(100% - 16px); // Adjust for padding
-        box-sizing: border-box;
+        font-size: 10px;
       }
       #logseq-custom-page-input {
         display: none;
@@ -70,6 +71,8 @@
         <option value="Journal">Journal</option>
         <option value="Custom">Custom Page</option>
     `;
+    pageSelection.style.fontSize = '10px';
+    pageSelection.style.border = 'none';
     container.appendChild(pageSelection);
 
     const customPageInput = document.createElement('input');
@@ -168,9 +171,9 @@
 
     function updateStatusBar() {
         if (currentNode && currentNode.content) {
-            statusBar.textContent = `当前层级: ${currentNode.content}`;
+            statusBar.textContent = `${currentNode.content}`;
         } else {
-            statusBar.textContent = `当前层级: 正在加载...`;
+            statusBar.textContent = `正在加载...`;
         }
         // console.log('Status bar updated:', statusBar.textContent);
     }
